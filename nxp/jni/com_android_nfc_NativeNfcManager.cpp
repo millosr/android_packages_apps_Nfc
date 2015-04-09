@@ -470,6 +470,72 @@ force_download:
          goto clean_and_return;
       }
    }
+   if (phLibNfc_Get_Firmware_Type() == 167)
+   {
+      for (i = 0; i < pn544_dev->common.reserved[0]; i++)
+      {
+         uint8_t* eeprom_base = (uint8_t*)(pn544_dev->common.reserved[1] + i*4);
+
+         TRACE(">> Addr: 0x%02X%02X set to: 0x%02X", eeprom_base[1], eeprom_base[2],
+                 eeprom_base[3]);
+         gInputParam.buffer = eeprom_base;
+         gInputParam.length = 0x04;
+         gOutputParam.buffer = resp;
+
+         REENTRANCE_LOCK();
+         status = phLibNfc_Mgt_IoCtl(gHWRef, NFC_MEM_WRITE, &gInputParam, &gOutputParam, nfc_jni_ioctl_callback, (void *)&cb_data);
+         REENTRANCE_UNLOCK();
+         if (status != NFCSTATUS_PENDING) {
+            ALOGE("phLibNfc_Mgt_IoCtl() returned 0x%04x[%s]", status, nfc_jni_get_status_name(status));
+            goto clean_and_return;
+         }
+         /* Wait for callback response */
+         if(sem_wait(&cb_data.sem))
+         {
+            ALOGE("Failed to wait for semaphore (errno=0x%08x)", errno);
+            goto clean_and_return;
+         }
+
+         /* Initialization Status */
+         if (cb_data.status != NFCSTATUS_SUCCESS)
+         {
+            goto clean_and_return;
+         }
+      }
+   }
+   else if (phLibNfc_Get_Firmware_Type() == 177)
+   {
+      for (i = 0; i < pn544_dev->common.reserved[2]; i++)
+      {
+         uint8_t* eeprom_base = (uint8_t*)(pn544_dev->common.reserved[3] + i*4);
+
+         TRACE(">> Addr: 0x%02X%02X set to: 0x%02X", eeprom_base[1], eeprom_base[2],
+                 eeprom_base[3]);
+         gInputParam.buffer = eeprom_base;
+         gInputParam.length = 0x04;
+         gOutputParam.buffer = resp;
+
+         REENTRANCE_LOCK();
+         status = phLibNfc_Mgt_IoCtl(gHWRef, NFC_MEM_WRITE, &gInputParam, &gOutputParam, nfc_jni_ioctl_callback, (void *)&cb_data);
+         REENTRANCE_UNLOCK();
+         if (status != NFCSTATUS_PENDING) {
+            ALOGE("phLibNfc_Mgt_IoCtl() returned 0x%04x[%s]", status, nfc_jni_get_status_name(status));
+            goto clean_and_return;
+         }
+         /* Wait for callback response */
+         if(sem_wait(&cb_data.sem))
+         {
+            ALOGE("Failed to wait for semaphore (errno=0x%08x)", errno);
+            goto clean_and_return;
+         }
+
+         /* Initialization Status */
+         if (cb_data.status != NFCSTATUS_SUCCESS)
+         {
+            goto clean_and_return;
+         }
+      }
+   }
    TRACE("******  ALL EEPROM SETTINGS UPDATED  ******");
 
    /* ====== SECURE ELEMENTS ======= */
@@ -1425,6 +1491,8 @@ static void com_android_nfc_NfcManager_enableDiscovery(JNIEnv *e, jobject o, jin
         nat->discovery_cfg.PollDevInfo.PollCfgInfo.EnableIso15693 = (modes & 0x08) != 0;
     }
 
+    if (restart)
+        nfc_jni_stop_discovery_locked(nat);
     nfc_jni_start_discovery_locked(nat, false);
 clean_and_return:
     CONCURRENCY_UNLOCK();

@@ -30,6 +30,9 @@ import android.util.Log;
 import com.android.nfc.NfcDiscoveryParameters;
 
 import java.io.File;
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 /**
  * Native interface to the NFC Manager functions
@@ -122,6 +125,14 @@ public class NativeNfcManager implements DeviceHost {
         return doInitialize();
     }
 
+    @Override
+    public void enableDtaMode() {
+    }
+
+    @Override
+    public void disableDtaMode() {
+    }
+
     private native boolean doDeinitialize();
 
     @Override
@@ -140,7 +151,7 @@ public class NativeNfcManager implements DeviceHost {
     }
 
     @Override
-    public boolean routeAid(byte[] aid, int route) {
+    public boolean routeAid(byte[] aid, int route, int aidInfo) {
         return false;
     }
 
@@ -172,6 +183,15 @@ public class NativeNfcManager implements DeviceHost {
     @Override
     public int getLfT3tMax() {
         return 0;
+    }
+
+    @Override
+    public void doSetScreenState(int screen_state_mask) {
+    }
+
+    @Override
+    public int getNciVersion() {
+        return 0x10; /* NCI_VERSION_1_0 */
     }
 
     private native void doEnableDiscovery(int techMask,
@@ -366,8 +386,15 @@ public class NativeNfcManager implements DeviceHost {
 
     private native String doDump();
     @Override
-    public String dump() {
-        return doDump();
+    public void dump(FileDescriptor fd) {
+        String result = doDump();
+        try {
+            FileOutputStream fos = new FileOutputStream(fd);
+            fos.write(result.getBytes());
+            fos.close();
+        } catch(IOException e) {
+            Log.e(TAG, "Error while dumping to file descriptor", e);
+        }
     }
 
     /**
